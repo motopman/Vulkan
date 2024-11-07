@@ -7,6 +7,7 @@
 */
 
 #include <VulkanTexture.h>
+#include <ktx.h>
 
 namespace vks
 {
@@ -28,7 +29,7 @@ namespace vks
 		vkFreeMemory(device->logicalDevice, deviceMemory, nullptr);
 	}
 
-	ktxResult Texture::loadKTXFile(std::string filename, ktxTexture **target)
+	ktxResult Texture::loadKTXFile(std::string filename, ktxTexture **target, VkFormat& format)
 	{
 		ktxResult result = KTX_SUCCESS;
 #if defined(__ANDROID__)
@@ -49,6 +50,19 @@ namespace vks
 		}
 		result = ktxTexture_CreateFromNamedFile(filename.c_str(), KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, target);			
 #endif		
+
+		// Check if texture is compressed or supercompressed
+		bool isSupercompressed = false;
+		// Check for supercompression in KTX2 textures
+		if ((*target)->classId == ktxTexture2_c)
+		{
+			ktxTexture2* ktx2 = reinterpret_cast<ktxTexture2*>(*target);
+			isSupercompressed = ktx2->supercompressionScheme != KTX_SS_NONE;
+			result = ktxTexture2_TranscodeBasis(ktx2, KTX_TTF_BC7_RGBA, 0);
+			assert(result == KTX_SUCCESS);
+			format = VK_FORMAT_BC7_UNORM_BLOCK;
+		}
+
 		return result;
 	}
 
@@ -67,7 +81,7 @@ namespace vks
 	void Texture2D::loadFromFile(std::string filename, VkFormat format, vks::VulkanDevice *device, VkQueue copyQueue, VkImageUsageFlags imageUsageFlags, VkImageLayout imageLayout, bool forceLinear)
 	{
 		ktxTexture* ktxTexture;
-		ktxResult result = loadKTXFile(filename, &ktxTexture);
+		ktxResult result = loadKTXFile(filename, &ktxTexture, format);
 		assert(result == KTX_SUCCESS);
 
 		this->device = device;
@@ -509,7 +523,7 @@ namespace vks
 	void Texture2DArray::loadFromFile(std::string filename, VkFormat format, vks::VulkanDevice *device, VkQueue copyQueue, VkImageUsageFlags imageUsageFlags, VkImageLayout imageLayout)
 	{
 		ktxTexture* ktxTexture;
-		ktxResult result = loadKTXFile(filename, &ktxTexture);
+		ktxResult result = loadKTXFile(filename, &ktxTexture, format);
 		assert(result == KTX_SUCCESS);
 
 		this->device = device;
@@ -693,7 +707,7 @@ namespace vks
 	void TextureCubeMap::loadFromFile(std::string filename, VkFormat format, vks::VulkanDevice *device, VkQueue copyQueue, VkImageUsageFlags imageUsageFlags, VkImageLayout imageLayout)
 	{
 		ktxTexture* ktxTexture;
-		ktxResult result = loadKTXFile(filename, &ktxTexture);
+		ktxResult result = loadKTXFile(filename, &ktxTexture, format);
 		assert(result == KTX_SUCCESS);
 
 		this->device = device;

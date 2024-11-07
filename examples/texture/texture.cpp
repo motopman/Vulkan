@@ -1,6 +1,6 @@
 /*
 * Vulkan Example - Texture loading (and display) example (including mip maps)
-* 
+*
 * This sample shows how to upload a 2D texture to the device and how to display it. In Vulkan this is done using images, views and samplers.
 *
 * Copyright (C) 2016-2023 by Sascha Willems - www.saschawillems.de
@@ -104,7 +104,7 @@ public:
 	void loadTexture()
 	{
 		// We use the Khronos texture format (https://www.khronos.org/opengles/sdk/tools/KTX/file_format_spec/)
-		std::string filename = getAssetPath() + "textures/credit_open.ktx";
+		std::string filename = getAssetPath() + "textures/rocks_normal_height_rgba.ktx";
 		// Texture data contains 4 channels (RGBA) with unnormalized 8-bit values, this is the most commonly supported format
 		VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
 
@@ -121,7 +121,7 @@ public:
 		size_t size = AAsset_getLength(asset);
 		assert(size > 0);
 
-		ktx_uint8_t *textureData = new ktx_uint8_t[size];
+		ktx_uint8_t* textureData = new ktx_uint8_t[size];
 		AAsset_read(asset, textureData, size);
 		AAsset_close(asset);
 		result = ktxTexture_CreateFromMemory(textureData, size, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &ktxTexture);
@@ -133,16 +133,29 @@ public:
 		result = ktxTexture_CreateFromNamedFile(filename.c_str(), KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &ktxTexture);
 #endif
 		assert(result == KTX_SUCCESS);
+		// Check if texture is compressed or supercompressed
+		bool isSupercompressed = false;
+		// Check for supercompression in KTX2 textures
+		if (ktxTexture->classId == ktxTexture2_c)
+		{
+			ktxTexture2* ktx2 = reinterpret_cast<ktxTexture2*>(ktxTexture);
+			isSupercompressed = ktx2->supercompressionScheme != KTX_SS_NONE;
+			result = ktxTexture2_TranscodeBasis(ktx2, KTX_TTF_BC7_RGBA, 0);
+			assert(result == KTX_SUCCESS);
+			format = VK_FORMAT_BC7_UNORM_BLOCK;
+		}
+
+		bool isCompressed = ktxTexture->isCompressed;
 
 		// Get properties required for using and upload texture data from the ktx texture object
 		texture.width = ktxTexture->baseWidth;
 		texture.height = ktxTexture->baseHeight;
 		texture.mipLevels = ktxTexture->numLevels;
-		ktx_uint8_t *ktxTextureData = ktxTexture_GetData(ktxTexture);
+		ktx_uint8_t* ktxTextureData = ktxTexture_GetData(ktxTexture);
 		ktx_size_t ktxTextureSize = ktxTexture_GetDataSize(ktxTexture);
 
 		// We prefer using staging to copy the texture data to a device local optimal image
-		VkBool32 useStaging = false;
+		VkBool32 useStaging = true;
 
 		// Only use linear tiling if forced
 		bool forceLinearTiling = false;
@@ -157,7 +170,8 @@ public:
 		VkMemoryAllocateInfo memAllocInfo = vks::initializers::memoryAllocateInfo();
 		VkMemoryRequirements memReqs = {};
 
-		if (useStaging) {
+		if (useStaging)
+		{
 			// Copy data to an optimal tiled image
 			// This loads the texture data into a host local buffer that is copied to the optimal tiled image on the device
 
@@ -182,8 +196,8 @@ public:
 			VK_CHECK_RESULT(vkBindBufferMemory(device, stagingBuffer, stagingMemory, 0));
 
 			// Copy texture data into host local staging buffer
-			uint8_t *data;
-			VK_CHECK_RESULT(vkMapMemory(device, stagingMemory, 0, memReqs.size, 0, (void **)&data));
+			uint8_t* data;
+			VK_CHECK_RESULT(vkMapMemory(device, stagingMemory, 0, memReqs.size, 0, (void**)&data));
 			memcpy(data, ktxTextureData, ktxTextureSize);
 			vkUnmapMemory(device, stagingMemory);
 
@@ -193,10 +207,10 @@ public:
 
 			for (uint32_t i = 0; i < texture.mipLevels; i++) {
 				// Calculate offset into staging buffer for the current mip level
-				ktx_size_t offset;
-				KTX_error_code ret = ktxTexture_GetImageOffset(ktxTexture, i, 0, 0, &offset);
-				assert(ret == KTX_SUCCESS);
-				// Setup a buffer image copy structure for the current mip level
+				ktx_size_t offset = 0;
+					KTX_error_code ret = ktxTexture_GetImageOffset(ktxTexture, i, 0, 0, &offset);
+					assert(ret == KTX_SUCCESS);
+					// Setup a buffer image copy structure for the current mip level
 				VkBufferImageCopy bufferCopyRegion = {};
 				bufferCopyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 				bufferCopyRegion.imageSubresource.mipLevel = i;
@@ -301,7 +315,9 @@ public:
 			// Clean up staging resources
 			vkFreeMemory(device, stagingMemory, nullptr);
 			vkDestroyBuffer(device, stagingBuffer, nullptr);
-		} else {
+		}
+		else
+		{
 			// Copy data to a linear tiled image
 
 			VkImage mappableImage;
@@ -331,7 +347,7 @@ public:
 			VK_CHECK_RESULT(vkBindImageMemory(device, mappableImage, mappableMemory, 0));
 
 			// Map image memory
-			void *data;
+			void* data;
 			VK_CHECK_RESULT(vkMapMemory(device, mappableMemory, 0, memReqs.size, 0, &data));
 			// Copy image data of the first mip level into memory
 			memcpy(data, ktxTextureData, memReqs.size);
@@ -353,7 +369,7 @@ public:
 			subresourceRange.layerCount = 1;
 
 			// Transition the texture image layout to shader read, so it can be sampled from
-			VkImageMemoryBarrier imageMemoryBarrier = vks::initializers::imageMemoryBarrier();;
+			VkImageMemoryBarrier imageMemoryBarrier = vks::initializers::imageMemoryBarrier();
 			imageMemoryBarrier.image = texture.image;
 			imageMemoryBarrier.subresourceRange = subresourceRange;
 			imageMemoryBarrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
@@ -400,7 +416,8 @@ public:
 			// Use max. level of anisotropy for this example
 			sampler.maxAnisotropy = vulkanDevice->properties.limits.maxSamplerAnisotropy;
 			sampler.anisotropyEnable = VK_TRUE;
-		} else {
+		}
+		else {
 			// The device does not support anisotropic filtering
 			sampler.maxAnisotropy = 1.0;
 			sampler.anisotropyEnable = VK_FALSE;
@@ -590,7 +607,7 @@ public:
 		VkPipelineMultisampleStateCreateInfo multisampleState = vks::initializers::pipelineMultisampleStateCreateInfo(VK_SAMPLE_COUNT_1_BIT, 0);
 		std::vector<VkDynamicState> dynamicStateEnables = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
 		VkPipelineDynamicStateCreateInfo dynamicState = vks::initializers::pipelineDynamicStateCreateInfo(dynamicStateEnables);
-		std::array<VkPipelineShaderStageCreateInfo,2> shaderStages;
+		std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages;
 
 		// Shaders
 		shaderStages[0] = loadShader(getShadersPath() + "texture/texture.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
@@ -670,7 +687,7 @@ public:
 		draw();
 	}
 
-	virtual void OnUpdateUIOverlay(vks::UIOverlay *overlay)
+	virtual void OnUpdateUIOverlay(vks::UIOverlay* overlay)
 	{
 		if (overlay->header("Settings")) {
 			if (overlay->sliderFloat("LOD bias", &uniformData.lodBias, 0.0f, (float)texture.mipLevels)) {

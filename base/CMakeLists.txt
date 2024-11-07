@@ -36,6 +36,7 @@ set(KTX_SOURCES
     ${KTX_DIR}/lib/vkformat_enum.h
     ${KTX_DIR}/lib/vkformat_str.c
     ${KTX_DIR}/lib/vkformat_typesize.c
+    ${KTX_DIR}/lib/basis_transcode.cpp
     ${KTX_DIR}/lib/filestream.c)
 
 add_library(base STATIC ${BASE_SRC} ${KTX_SOURCES})

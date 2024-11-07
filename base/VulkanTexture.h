@@ -44,7 +44,7 @@ class Texture
 
 	void      updateDescriptor();
 	void      destroy();
-	ktxResult loadKTXFile(std::string filename, ktxTexture **target);
+	ktxResult loadKTXFile(std::string filename, ktxTexture **target, VkFormat& format);
 };
 
 class Texture2D : public Texture
