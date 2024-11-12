@@ -104,12 +104,13 @@ public:
 	void loadTexture()
 	{
 		// We use the Khronos texture format (https://www.khronos.org/opengles/sdk/tools/KTX/file_format_spec/)
-		std::string filename = getAssetPath() + "textures/rocks_normal_height_rgba.ktx";
+		std::string filename = getAssetPath() + "textures/loadscreenil1.ktx";
 		// Texture data contains 4 channels (RGBA) with unnormalized 8-bit values, this is the most commonly supported format
 		VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
 
 		ktxResult result;
 		ktxTexture* ktxTexture;
+
 
 #if defined(__ANDROID__)
 		// Textures are stored inside the apk on Android (compressed)
@@ -127,7 +128,10 @@ public:
 		result = ktxTexture_CreateFromMemory(textureData, size, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &ktxTexture);
 		delete[] textureData;
 #else
-		if (!vks::tools::fileExists(filename)) {
+
+		if
+
+        (!vks::tools::fileExists(filename)) {
 			vks::tools::exitFatal("Could not load texture from " + filename + "\n\nMake sure the assets submodule has been checked out and is up-to-date.", -1);
 		}
 		result = ktxTexture_CreateFromNamedFile(filename.c_str(), KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &ktxTexture);
@@ -138,16 +142,38 @@ public:
 		// Check for supercompression in KTX2 textures
 		if (ktxTexture->classId == ktxTexture2_c)
 		{
-			ktxTexture2* ktx2 = reinterpret_cast<ktxTexture2*>(ktxTexture);
+            int formatIdx=0;
+            std::vector<VkFormat> compressedFormats = {
+                    VK_FORMAT_BC7_UNORM_BLOCK,      // BC7 - Typically supported on desktop devices
+                    VK_FORMAT_ASTC_4x4_UNORM_BLOCK, // ASTC - Supported on newer mobile devices
+                    VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK // ETC2 - Supported on many mobile devices
+            };
+
+            std::vector<ktx_transcode_fmt_e> ktxFormats = {
+                    KTX_TTF_BC7_RGBA,      // BC7 - Typically supported on desktop devices
+                    KTX_TTF_ASTC_4x4_RGBA, // ASTC - Supported on newer mobile devices
+                    KTX_TTF_ETC2_RGBA // ETC2 - Supported on many mobile devices
+            };
+
+            for (int i =0; i < 3;++i) {
+                VkFormatProperties formatProperties;
+                vkGetPhysicalDeviceFormatProperties(physicalDevice, compressedFormats[i], &formatProperties);
+
+                // Check if the format is supported for sampled images in an optimal tiling layout
+                if (formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) {
+                    formatIdx=i;
+                    break;
+                }
+            }
+
+            ktxTexture2* ktx2 = reinterpret_cast<ktxTexture2*>(ktxTexture);
 			isSupercompressed = ktx2->supercompressionScheme != KTX_SS_NONE;
-			result = ktxTexture2_TranscodeBasis(ktx2, KTX_TTF_BC7_RGBA, 0);
+			result = ktxTexture2_TranscodeBasis(ktx2, ktxFormats[formatIdx], 0);
 			assert(result == KTX_SUCCESS);
-			format = VK_FORMAT_BC7_UNORM_BLOCK;
+			format = compressedFormats[formatIdx];
 		}
 
-		bool isCompressed = ktxTexture->isCompressed;
-
-		// Get properties required for using and upload texture data from the ktx texture object
+  	// Get properties required for using and upload texture data from the ktx texture object
 		texture.width = ktxTexture->baseWidth;
 		texture.height = ktxTexture->baseHeight;
 		texture.mipLevels = ktxTexture->numLevels;
@@ -203,9 +229,8 @@ public:
 
 			// Setup buffer copy regions for each mip level
 			std::vector<VkBufferImageCopy> bufferCopyRegions;
-			uint32_t offset = 0;
 
-			for (uint32_t i = 0; i < texture.mipLevels; i++) {
+				for (uint32_t i = 0; i < texture.mipLevels; i++) {
 				// Calculate offset into staging buffer for the current mip level
 				ktx_size_t offset = 0;
 					KTX_error_code ret = ktxTexture_GetImageOffset(ktxTexture, i, 0, 0, &offset);
