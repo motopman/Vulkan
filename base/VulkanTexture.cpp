@@ -9,6 +9,16 @@
 #include <VulkanTexture.h>
 #include <ktx.h>
 
+#if defined(_WIN32)
+#ifndef max
+#define max(a,b)            (((a) > (b)) ? (a) : (b))
+#endif
+
+#ifndef min
+#define min(a,b)            (((a) < (b)) ? (a) : (b))
+#endif
+#endif
+
 namespace vks
 {
 	void Texture::updateDescriptor()
@@ -153,8 +163,13 @@ namespace vks
 				bufferCopyRegion.imageSubresource.mipLevel = i;
 				bufferCopyRegion.imageSubresource.baseArrayLayer = 0;
 				bufferCopyRegion.imageSubresource.layerCount = 1;
-				bufferCopyRegion.imageExtent.width = std::max(1u, ktxTexture->baseWidth >> i);
-				bufferCopyRegion.imageExtent.height = std::max(1u, ktxTexture->baseHeight >> i);
+#if defined(_WIN32)
+				bufferCopyRegion.imageExtent.width = max(1u, ktxTexture->baseWidth >> i);
+				bufferCopyRegion.imageExtent.height = max(1u, ktxTexture->baseHeight >> i);
+#else
+                bufferCopyRegion.imageExtent.width = std::max(1u, ktxTexture->baseWidth >> i);
+                bufferCopyRegion.imageExtent.height = std::max(1u, ktxTexture->baseHeight >> i);
+#endif
 				bufferCopyRegion.imageExtent.depth = 1;
 				bufferCopyRegion.bufferOffset = offset;
 

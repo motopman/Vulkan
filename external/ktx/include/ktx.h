@@ -56,7 +56,7 @@
 
 #if defined(_WIN32) && !defined(KHRONOS_STATIC)
   #if !defined(KTX_APIENTRY)
-    #define KTX_APIENTRY __stdcall
+    #define KTX_APIENTRY //__stdcall
   #endif
 #else
   #define KTX_APIENTRY

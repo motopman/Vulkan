@@ -6,7 +6,8 @@
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
 
-#pragma once
+#ifndef VULKANEXAMPLEBASE_H // Use a unique identifier for every file.
+#define VULKANEXAMPLEBASE_H
 
 #ifdef _WIN32
 #pragma comment(linker, "/subsystem:windows")
@@ -562,4 +563,5 @@ int main(const int argc, const char *argv[])										\
 	delete(vulkanExample);												\
 	return 0;													\
 }
+#endif
 #endif

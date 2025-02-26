@@ -8,7 +8,8 @@
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
 
-#pragma once
+#ifndef VULKAN_INITIALIZERS_H // Use a unique identifier for every file.
+#define VULKAN_INITIALIZERS_H
 
 #include <vector>
 #include "vulkan/vulkan.h"
@@ -657,3 +658,5 @@ namespace vks
 
 	}
 }
+
+#endif

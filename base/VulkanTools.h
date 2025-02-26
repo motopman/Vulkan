@@ -6,7 +6,8 @@
  * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
  */
 
-#pragma once
+#ifndef N_VULKANTOOLS_H
+#define N_VULKANTOOLS_H
 
 #include "vulkan/vulkan.h"
 #include "VulkanInitializers.hpp"
@@ -136,3 +137,5 @@ namespace vks
 		VkDeviceSize alignedVkSize(VkDeviceSize value, VkDeviceSize alignment);
 	}
 }
+
+#endif

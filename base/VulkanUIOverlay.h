@@ -6,7 +6,8 @@
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
 
-#pragma once
+#ifndef VULKANUIOVERLAY_H // Use a unique identifier for every file.
+#define VULKANUIOVERLAY_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -92,3 +93,4 @@ namespace vks
 		void text(const char* formatstr, ...);
 	};
 }
+#endif

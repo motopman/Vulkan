@@ -13,7 +13,8 @@
  * If you are looking for a complete glTF implementation, check out https://github.com/SaschaWillems/Vulkan-glTF-PBR/
  */
 
-#pragma once
+#ifndef VULKANITFMODEL_H // Use a unique identifier for every file.
+#define VULKANITFMODEL_H
 
 #include <stdlib.h>
 #include <string>
@@ -314,3 +315,5 @@ namespace vkglTF
 		void prepareNodeDescriptor(vkglTF::Node* node, VkDescriptorSetLayout descriptorSetLayout);
 	};
 }
+
+#endif
