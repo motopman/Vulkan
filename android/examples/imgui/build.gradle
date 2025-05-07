@@ -1,12 +1,19 @@
+// It's recommended to use the plugins block for applying plugins if your Gradle version supports it
+// plugins {
+//     id 'com.android.application'
+// }
+// If using an older Gradle version, 'apply plugin' is fine.
 apply plugin: 'com.android.application'
-apply from: '../gradle/outputfilename.gradle'
+apply from: '../gradle/outputfilename.gradle' // This script only changes APK output location.
 
 android {
-    compileSdkVersion rootProject.ext.compileSdkVersion
+    namespace "de.saschawillems.vulkanImGui"
+    compileSdk rootProject.ext.compileSdkVersion
+
     defaultConfig {
         applicationId "de.saschawillems.vulkanImGui"
-        minSdkVersion rootProject.ext.minSdkVersion
-        targetSdkVersion rootProject.ext.targetSdkVersion
+        minSdk rootProject.ext.minSdkVersion
+        targetSdk rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
         ndk {
@@ -19,60 +26,107 @@ android {
             }
         }
     }
+
     sourceSets {
+        // The 'assets' directory at the module root (e.g., your_module/assets)
+        // is the primary source for AGP to package assets.
+        // The copyTask below prepares files into this directory.
         main.assets.srcDirs = ['assets']
     }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+        debug {
+            externalNativeBuild {
+                cmake {
+                    cppFlags "-std=c++14", "-g"
+                }
+            }
+        }
     }
+
     externalNativeBuild {
         cmake {
             path "CMakeLists.txt"
         }
     }
+
+    packagingOptions {
+        // This is a broad rule. If 'assets/models/vulkanscenebackground.gltf'
+        // is still causing a duplicate error, the source of duplication is very elusive
+        // or the clean steps were not fully effective.
+        pickFirst 'assets/models/**'
+        pickFirst 'assets/shaders/**' // Added for shaders as a precaution, similar to models
+    }
 }
 
 task copyTask {
-    copy {
-        from '../../common/res/drawable'
-        into "src/main/res/drawable"
-        include 'icon.png'
+    doLast {
+        // --- More Aggressive Cleaning within copyTask ---
+        // Delete the specific target directories within 'assets' that this task manages.
+        // This helps ensure that this task starts with a clean slate for its outputs,
+        // preventing its own previous runs or other stray files in these specific
+        // subdirectories from causing conflicts.
+        println "copyTask: Cleaning target asset sub-directories before copy..."
+        project.delete('assets/shaders/glsl/base')
+        project.delete('assets/shaders/glsl/imgui')
+        project.delete('assets/models')
+        // It's also good to delete the drawable if it's exclusively managed by this task,
+        // but drawables are usually part of src/main/res, so be careful.
+        // project.delete('src/main/res/drawable/icon.png') // Only if 'icon.png' is solely from this task
+
+        // Re-create directories after deleting to ensure copy 'into' works
+        file('assets/shaders/glsl/base').mkdirs()
+        file('assets/shaders/glsl/imgui').mkdirs()
+        file('assets/models').mkdirs()
+        file('src/main/res/drawable').mkdirs() // Ensure drawable dir exists
+
+        println "copyTask: Starting file copy operations..."
+
+        // Copy operation 1: Icon
+        copy {
+            from '../../common/res/drawable'
+            into "src/main/res/drawable" // Standard Android resource directory
+            include 'icon.png'
+            eachFile { details ->
+                println "Copying icon: ${details.sourcePath} to ${details.relativePath.pathString} (destination: ${details.file.parentFile})"
+            }
+        }
+
+        // Copy operation 2: Base Shaders
+        copy {
+            from rootProject.ext.shaderPath + 'glsl/base'
+            into 'assets/shaders/glsl/base' // Goes into module_root/assets/shaders/glsl/base
+            include '*.spv'
+            eachFile { details ->
+                println "Copying base shader: ${details.sourcePath} to ${details.relativePath.pathString} (destination: ${details.file.parentFile})"
+            }
+        }
+
+        // Copy operation 3: ImGui Shaders
+        copy {
+            from rootProject.ext.shaderPath + 'glsl/imgui'
+            into 'assets/shaders/glsl/imgui' // Goes into module_root/assets/shaders/glsl/imgui
+            include '*.*'
+            eachFile { details ->
+                println "Copying imgui shader: ${details.sourcePath} to ${details.relativePath.pathString} (destination: ${details.file.parentFile})"
+            }
+        }
+
+        // Copy operation 4: Models
+        copy {
+            from rootProject.ext.assetPath + 'models'
+            into 'assets/models' // Goes into module_root/assets/models
+            include 'vulkanscenemodels.gltf', 'vulkanscenebackground.gltf', 'vulkanscenelogos.gltf'
+            eachFile { details ->
+                println "Copying model: ${details.sourcePath} to ${details.relativePath.pathString} (destination: ${details.file.parentFile})"
+            }
+        }
+        println "copyTask finished."
     }
-
-    copy {
-        from rootProject.ext.shaderPath + 'glsl/base'
-        into 'assets/shaders/glsl/base'
-        include '*.spv'
-    }
-
-    copy {
-       from rootProject.ext.shaderPath + 'glsl/imgui'
-       into 'assets/shaders/glsl/imgui'
-       include '*.*'
-    }
-
-    copy {
-       from rootProject.ext.assetPath + 'models'
-       into 'assets/models'
-       include 'vulkanscenemodels.gltf'
-    }
-
-    copy {
-       from rootProject.ext.assetPath + 'models'
-       into 'assets/models'
-       include 'vulkanscenebackground.gltf'
-    }
-
-    copy {
-       from rootProject.ext.assetPath + 'models'
-       into 'assets/models'
-       include 'vulkanscenelogos.gltf'
-    }
-
-
 }
 
 preBuild.dependsOn copyTask
